@@ -1,1 +1,24 @@
+# IDE / editors
 .idea/
+.vscode/
+
+# Project docs (local source of truth, not versioned here)
+docs
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Secrets / local config
+.env
+.env.*
+!.env.example
