@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     # DATABASE_URL must stop the app at startup rather than fail on first query.
     database_url: str
 
+    # Embedding vector width. Must match the model that produces the vectors
+    # (paraphrase-multilingual-MiniLM-L12-v2 -> 384). Changing the model means a
+    # new migration for the `vector(N)` column, so this lives in config, not code.
+    embedding_dimensions: int = 384
+
 
 settings = Settings()  # values come from the environment / .env
-

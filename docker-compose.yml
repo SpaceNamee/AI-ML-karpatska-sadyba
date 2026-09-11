@@ -14,7 +14,9 @@ services:
       POSTGRES_PASSWORD: sadyba
       POSTGRES_DB: sadyba
     ports:
-      - "5432:5432"
+      # Host 5433 -> container 5432: avoids clashing with a native Postgres on 5432.
+      # Inside compose, other services still reach this as db:5432.
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro

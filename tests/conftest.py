@@ -5,7 +5,7 @@ import os
 # a real value from the shell (or CI) still wins.
 os.environ.setdefault(
     "DATABASE_URL",
-    "postgresql+asyncpg://sadyba:sadyba@localhost:5432/sadyba_test",
+    "postgresql+asyncpg://sadyba:sadyba@localhost:5433/sadyba_test",
 )
 os.environ.setdefault("ENVIRONMENT", "ci")
 
