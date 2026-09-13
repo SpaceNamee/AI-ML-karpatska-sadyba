@@ -4,12 +4,15 @@ A model that no import path reaches is invisible to `alembic revision --autogene
 Add each new model module to this list as you create it.
 """
 
+from app.db.models.availability import AvailabilityBlock, AvailabilitySource
 from app.db.models.bedroom import Bedroom
 from app.db.models.cottage import Amenity, Cottage, cottage_amenities
 from app.db.models.kb import IngestionJob, IngestionStatus, KbChunk, KbDocument
 
 __all__ = [
     "Amenity",
+    "AvailabilityBlock",
+    "AvailabilitySource",
     "Bedroom",
     "Cottage",
     "IngestionJob",

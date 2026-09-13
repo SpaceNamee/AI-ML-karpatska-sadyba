@@ -10,8 +10,13 @@ from fastapi.responses import JSONResponse
 from app.api.v1.router import router as v1_router
 from app.core.config import settings
 from app.core.exceptions import NotFoundError
+from app.core.logging import configure_logging
+from app.core.middleware import RequestIDMiddleware
+
+configure_logging(debug=settings.debug)
 
 app = FastAPI(title="Karpatska Sadyba API", debug=settings.debug)
+app.add_middleware(RequestIDMiddleware)
 app.include_router(v1_router)
 
 
