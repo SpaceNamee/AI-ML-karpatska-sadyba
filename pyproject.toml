@@ -8,8 +8,18 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
+    "alembic>=1.19.2",
+    "arq>=0.28.0",
+    "asyncpg>=0.31.0",
     "fastapi>=0.141.1",
+    "passlib[argon2]>=1.7.4",
+    "pgvector>=0.5.0",
     "pydantic-settings>=2.15.0",
+    "pyjwt>=2.14.0",
+    "pypdf>=6.18.1",
+    "python-multipart>=0.0.32",
+    "sqlalchemy>=2.0.52",
+    "structlog>=26.1.0",
     "uvicorn[standard]>=0.52.4",
 ]
 
@@ -23,6 +33,7 @@ dev = [
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "ruff>=0.16.6",
+    "types-passlib>=1.7.7.20260211",
 ]
 
 [tool.ruff]
@@ -41,6 +52,13 @@ select = [
     "C4",       # flake8-comprehensions
     "ASYNC",    # flake8-async (async footguns)
     "RUF",      # ruff-specific rules
+]
+ignore = [
+    # RUF001-003 flag Cyrillic letters as "ambiguous" look-alikes of Latin ones.
+    # That rule protects against homoglyph tricks in English-language code; this
+    # project's domain content (docstrings, seed data, later prompts) is
+    # genuinely Ukrainian, so it would flag nearly every literal in `app/db/seed.py`.
+    "RUF001", "RUF002", "RUF003",
 ]
 
 [tool.ruff.lint.isort]
