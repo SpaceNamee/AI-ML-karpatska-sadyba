@@ -47,6 +47,7 @@ class Cottage(TimestampMixin, Base):
         # message; this is the guarantee that survives a bad script or migration.
         CheckConstraint("base_guests > 0", name="ck_cottages_base_guests_positive"),
         CheckConstraint("base_guests <= max_guests", name="ck_cottages_base_le_max"),
+        CheckConstraint("bathrooms > 0", name="ck_cottages_bathrooms_positive"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -56,6 +57,10 @@ class Cottage(TimestampMixin, Base):
     area_sqm: Mapped[int]
     max_guests: Mapped[int]
     base_guests: Mapped[int]
+    # Total bathroom count. about.md gives a with/without-shower split per cottage;
+    # collapsed to one number because nothing today reads the split. Revisit if a
+    # feature needs it.
+    bathrooms: Mapped[int]
     view: Mapped[CottageView] = mapped_column(pg_enum(CottageView))
     description: Mapped[str] = mapped_column(Text, default="", server_default="")
 
