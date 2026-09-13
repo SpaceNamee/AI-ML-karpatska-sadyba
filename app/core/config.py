@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     # DATABASE_URL must stop the app at startup rather than fail on first query.
     database_url: str
 
+    # Same reasoning as DATABASE_URL: host `localhost` vs `redis` (in compose)
+    # is easy to get silently wrong, so there's no default to fall back on.
+    redis_url: str
+
     # Embedding vector width. Must match the model that produces the vectors
     # (paraphrase-multilingual-MiniLM-L12-v2 -> 384). Changing the model means a
     # new migration for the `vector(N)` column, so this lives in config, not code.

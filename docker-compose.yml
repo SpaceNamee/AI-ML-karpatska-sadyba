@@ -1,10 +1,11 @@
 # Local development stack. `docker compose up` must work on a clean machine.
-#   - db     : Postgres 16 with pgvector + btree_gist
-#   - redis  : queue backend for ARQ (added in a later sprint day)
-#   - api    : the FastAPI app, hot-reloading on code changes
+#   - db      : Postgres 16 with pgvector + btree_gist
+#   - redis   : queue backend for ARQ
+#   - api     : the FastAPI app, hot-reloading on code changes
+#   - worker  : the ARQ worker (knowledge-base ingestion), same image as api
 #
 # Day-to-day you can also run just the infra (`docker compose up db redis`) and
-# start the app on the host with `uv run uvicorn app.main:app --reload`.
+# start the app/worker on the host with `uv run uvicorn ...` / `uv run arq ...`.
 
 services:
   db:
@@ -39,17 +40,29 @@ services:
   api:
     build: .
     command: uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    environment:
+    environment: &app_env
       ENVIRONMENT: local
       DEBUG: "true"
       DATABASE_URL: postgresql+asyncpg://sadyba:sadyba@db:5432/sadyba
+      REDIS_URL: redis://redis:6379/0
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?set JWT_SECRET_KEY in .env}
     ports:
       - "8000:8000"
-    volumes:
+    volumes: &app_volumes
       - .:/app                    # bind-mount source for hot reload
       - /app/.venv                # keep the container's Linux venv, don't let the host's shadow it
       - uploads_data:/app/data/uploads  # survive container restarts/rebuilds
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: .
+    command: uv run arq app.jobs.ingest_worker.WorkerSettings
+    environment: *app_env
+    volumes: *app_volumes
     depends_on:
       db:
         condition: service_healthy

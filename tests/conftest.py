@@ -9,6 +9,7 @@ os.environ.setdefault(
 )
 os.environ.setdefault("ENVIRONMENT", "ci")
 os.environ.setdefault("JWT_SECRET_KEY", "test-only-secret-not-for-real-use")
+os.environ.setdefault("REDIS_URL", "redis://localhost:6379/1")
 
 from collections.abc import AsyncIterator
 

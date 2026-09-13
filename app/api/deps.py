@@ -12,6 +12,7 @@ from app.core.exceptions import InvalidTokenError
 from app.core.security import decode_access_token
 from app.db.models.user import User
 from app.db.session import get_session
+from app.jobs.queue import ArqIngestQueue, IngestQueueLike
 from app.repositories.availability_repository import AvailabilityRepository
 from app.repositories.cottage_repository import CottageRepository
 from app.repositories.document_repository import DocumentRepository
@@ -47,9 +48,16 @@ def get_auth_service(session: SessionDep) -> AuthService:
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 
 
-def get_knowledge_base_service(session: SessionDep) -> KnowledgeBaseService:
+def get_ingest_queue() -> IngestQueueLike:
+    return ArqIngestQueue()
+
+
+IngestQueueDep = Annotated[IngestQueueLike, Depends(get_ingest_queue)]
+
+
+def get_knowledge_base_service(session: SessionDep, queue: IngestQueueDep) -> KnowledgeBaseService:
     return KnowledgeBaseService(
-        DocumentRepository(session), settings.storage_dir, settings.max_upload_size_bytes
+        DocumentRepository(session), settings.storage_dir, settings.max_upload_size_bytes, queue
     )
 
 

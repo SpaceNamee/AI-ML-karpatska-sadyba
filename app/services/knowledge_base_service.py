@@ -1,7 +1,7 @@
 """Knowledge-base ingestion entry point. No HTTP, no SQL — see CLAUDE.md rule
-#2. The actual parsing/chunking/embedding pipeline is a later sprint day; this
-service's whole job today is: validate, store the file, and record a PENDING
-job for a worker to pick up.
+#2. This service's job is: validate, store the file, record a PENDING job, and
+hand off to the background worker (`app/jobs/ingest_worker.py`) — the actual
+parsing/chunking happens there, off the request path.
 """
 
 import uuid
@@ -27,13 +27,22 @@ class DocumentRepositoryLike(Protocol):
     ) -> KbDocument: ...
 
 
+class IngestQueueLike(Protocol):
+    async def enqueue_ingest(self, document_id: int) -> None: ...
+
+
 class KnowledgeBaseService:
     def __init__(
-        self, repository: DocumentRepositoryLike, storage_dir: Path, max_upload_size_bytes: int
+        self,
+        repository: DocumentRepositoryLike,
+        storage_dir: Path,
+        max_upload_size_bytes: int,
+        queue: IngestQueueLike,
     ) -> None:
         self._repository = repository
         self._storage_dir = storage_dir
         self._max_upload_size_bytes = max_upload_size_bytes
+        self._queue = queue
 
     async def ingest_upload(
         self, *, filename: str, content: bytes, title: str | None = None
@@ -57,9 +66,16 @@ class KnowledgeBaseService:
         # both this test suite and an ad-hoc script use.
         await anyio.to_thread.run_sync(_write_file, stored_path, content)
 
-        return await self._repository.create_pending(
+        document = await self._repository.create_pending(
             title=title or Path(filename).stem,
             original_filename=filename,
             stored_path=str(stored_path),
             content_type=content_type,
         )
+        # Known limitation, not hidden: this is two independent writes (the DB
+        # commit above, this enqueue) with no shared transaction. If the
+        # process dies between them, the document sits at PENDING forever. An
+        # outbox pattern would close that gap; not worth the complexity yet
+        # for a single-admin, low-volume upload endpoint.
+        await self._queue.enqueue_ingest(document.id)
+        return document
