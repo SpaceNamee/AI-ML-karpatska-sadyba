@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.v1.router import router as v1_router
 from app.core.config import settings
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import AuthenticationError, DomainError
 from app.core.logging import configure_logging
 from app.core.middleware import RequestIDMiddleware
 
@@ -20,11 +20,13 @@ app.add_middleware(RequestIDMiddleware)
 app.include_router(v1_router)
 
 
-@app.exception_handler(NotFoundError)
-async def handle_not_found(request: Request, exc: NotFoundError) -> JSONResponse:
+@app.exception_handler(DomainError)
+async def handle_domain_error(request: Request, exc: DomainError) -> JSONResponse:
     # Same envelope shape as FastAPI's own HTTPException (`{"detail": ...}`), so
-    # a client never has to branch on which kind of error came back.
-    return JSONResponse(status_code=404, content={"detail": str(exc)})
+    # a client never has to branch on which kind of error came back. Every
+    # DomainError subclass just declares its own status_code.
+    headers = {"WWW-Authenticate": "Bearer"} if isinstance(exc, AuthenticationError) else None
+    return JSONResponse(status_code=exc.status_code, content={"detail": str(exc)}, headers=headers)
 
 
 @app.get("/health")

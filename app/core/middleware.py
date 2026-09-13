@@ -65,7 +65,8 @@ class RequestIDMiddleware:
 
 
 def _get_header(scope: Scope, name: bytes) -> str | None:
-    for key, value in scope.get("headers", []):
+    headers: list[tuple[bytes, bytes]] = scope.get("headers", [])
+    for key, value in headers:
         if key == name:
             return value.decode()
     return None

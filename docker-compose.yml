@@ -43,11 +43,13 @@ services:
       ENVIRONMENT: local
       DEBUG: "true"
       DATABASE_URL: postgresql+asyncpg://sadyba:sadyba@db:5432/sadyba
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?set JWT_SECRET_KEY in .env}
     ports:
       - "8000:8000"
     volumes:
-      - .:/app          # bind-mount source for hot reload
-      - /app/.venv      # keep the container's Linux venv, don't let the host's shadow it
+      - .:/app                    # bind-mount source for hot reload
+      - /app/.venv                # keep the container's Linux venv, don't let the host's shadow it
+      - uploads_data:/app/data/uploads  # survive container restarts/rebuilds
     depends_on:
       db:
         condition: service_healthy
@@ -56,3 +58,4 @@ services:
 
 volumes:
   pgdata:
+  uploads_data:

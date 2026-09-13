@@ -8,6 +8,7 @@ from app.db.models.availability import AvailabilityBlock, AvailabilitySource
 from app.db.models.bedroom import Bedroom
 from app.db.models.cottage import Amenity, Cottage, cottage_amenities
 from app.db.models.kb import IngestionJob, IngestionStatus, KbChunk, KbDocument
+from app.db.models.user import User
 
 __all__ = [
     "Amenity",
@@ -19,5 +20,6 @@ __all__ = [
     "IngestionStatus",
     "KbChunk",
     "KbDocument",
+    "User",
     "cottage_amenities",
 ]

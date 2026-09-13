@@ -8,6 +8,7 @@ os.environ.setdefault(
     "postgresql+asyncpg://sadyba:sadyba@localhost:5433/sadyba_test",
 )
 os.environ.setdefault("ENVIRONMENT", "ci")
+os.environ.setdefault("JWT_SECRET_KEY", "test-only-secret-not-for-real-use")
 
 from collections.abc import AsyncIterator
 
