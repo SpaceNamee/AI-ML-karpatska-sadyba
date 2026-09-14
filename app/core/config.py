@@ -30,9 +30,11 @@ class Settings(BaseSettings):
     # is easy to get silently wrong, so there's no default to fall back on.
     redis_url: str
 
-    # Embedding vector width. Must match the model that produces the vectors
-    # (paraphrase-multilingual-MiniLM-L12-v2 -> 384). Changing the model means a
-    # new migration for the `vector(N)` column, so this lives in config, not code.
+    # The model and its vector width travel together — changing one without the
+    # other is a silent bug (a dimension mismatch) or a wasted re-embed (same
+    # dimension, different vectors). embeddings.load_model() checks the two
+    # agree at worker startup rather than at the first surprising INSERT error.
+    embedding_model_name: str = "paraphrase-multilingual-MiniLM-L12-v2"
     embedding_dimensions: int = 384
 
     # No default: a secret with a built-in fallback is a secret that leaks into

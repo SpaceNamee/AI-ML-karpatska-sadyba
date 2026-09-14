@@ -41,6 +41,12 @@ class InvalidTokenError(AuthenticationError):
         super().__init__("Could not validate credentials")
 
 
+class DocumentNotFoundError(NotFoundError):
+    def __init__(self, document_id: int) -> None:
+        self.document_id = document_id
+        super().__init__(f"Document {document_id} not found")
+
+
 class UnsupportedDocumentTypeError(DomainError):
     status_code = 415
 

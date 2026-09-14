@@ -5,12 +5,17 @@ parsing/chunking happens there, off the request path.
 """
 
 import uuid
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Protocol
 
 import anyio
 
-from app.core.exceptions import UnsupportedDocumentTypeError, UploadTooLargeError
+from app.core.exceptions import (
+    DocumentNotFoundError,
+    UnsupportedDocumentTypeError,
+    UploadTooLargeError,
+)
 from app.db.models.kb import KbDocument
 
 _ALLOWED_EXTENSIONS = {".txt": "text/plain", ".pdf": "application/pdf"}
@@ -25,6 +30,8 @@ class DocumentRepositoryLike(Protocol):
     async def create_pending(
         self, *, title: str, original_filename: str, stored_path: str, content_type: str
     ) -> KbDocument: ...
+    async def get_by_id(self, document_id: int) -> KbDocument | None: ...
+    async def list_all(self) -> Sequence[KbDocument]: ...
 
 
 class IngestQueueLike(Protocol):
@@ -79,3 +86,12 @@ class KnowledgeBaseService:
         # for a single-admin, low-volume upload endpoint.
         await self._queue.enqueue_ingest(document.id)
         return document
+
+    async def get_document(self, document_id: int) -> KbDocument:
+        document = await self._repository.get_by_id(document_id)
+        if document is None:
+            raise DocumentNotFoundError(document_id)
+        return document
+
+    async def list_documents(self) -> Sequence[KbDocument]:
+        return await self._repository.list_all()
