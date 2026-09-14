@@ -46,13 +46,14 @@ services:
       DATABASE_URL: postgresql+asyncpg://sadyba:sadyba@db:5432/sadyba
       REDIS_URL: redis://redis:6379/0
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?set JWT_SECRET_KEY in .env}
-      HF_HOME: /app/.cache/huggingface  # only the worker downloads a model, but harmless on api too
+      HF_HOME: /app/.cache/huggingface  # api embeds query text (POST /query); worker embeds chunks
     ports:
       - "8000:8000"
-    volumes: &app_volumes
+    volumes:
       - .:/app                    # bind-mount source for hot reload
       - /app/.venv                # keep the container's Linux venv, don't let the host's shadow it
       - uploads_data:/app/data/uploads  # survive container restarts/rebuilds
+      - hf_cache:/app/.cache/huggingface  # shared with worker: one download, not two
     depends_on:
       db:
         condition: service_healthy

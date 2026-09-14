@@ -1,11 +1,18 @@
 """Embedding model loading and batch encoding.
 
-Load once per worker process (see `app/jobs/ingest_worker.py`'s on_startup),
-never per job — constructing `SentenceTransformer` reloads weights from disk
-(or downloads them, the first time) and takes on the order of a minute; doing
-that per document would make ingestion unusably slow.
+Load once per process, never per call — constructing `SentenceTransformer`
+reloads weights from disk (or downloads them, the first time) and takes on
+the order of a minute; doing that per document or per query would make
+everything unusably slow. `app/jobs/ingest_worker.py` (the worker) loads it
+in `on_startup` and threads it through ARQ's `ctx`; `get_shared_model()`
+below is the equivalent for the API process, which has no comparable
+per-process startup hook it can rely on (see `app/jobs/queue.py`'s docstring
+for why — the same ASGITransport-vs-lifespan lesson applies here).
 """
 
+import asyncio
+
+import anyio
 from sentence_transformers import SentenceTransformer
 
 from app.core.config import settings
@@ -30,3 +37,20 @@ def embed_texts(model: SentenceTransformer, texts: list[str]) -> list[list[float
         return []
     vectors = model.encode(texts, batch_size=32, show_progress_bar=False)
     return [vector.tolist() for vector in vectors]
+
+
+_model: SentenceTransformer | None = None
+_model_lock = asyncio.Lock()
+
+
+async def get_shared_model() -> SentenceTransformer:
+    """Lazily-created, process-wide singleton — the async-safe equivalent of
+    the worker's eager on_startup load, for a process (the API) with no
+    reliable startup hook to put it in instead.
+    """
+    global _model
+    if _model is None:
+        async with _model_lock:
+            if _model is None:  # re-check: another request may have won the race
+                _model = await anyio.to_thread.run_sync(load_model)
+    return _model

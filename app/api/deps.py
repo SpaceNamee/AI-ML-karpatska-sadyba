@@ -14,6 +14,7 @@ from app.db.models.user import User
 from app.db.session import get_session
 from app.jobs.queue import ArqIngestQueue, IngestQueueLike
 from app.repositories.availability_repository import AvailabilityRepository
+from app.repositories.chunk_repository import ChunkRepository
 from app.repositories.cottage_repository import CottageRepository
 from app.repositories.document_repository import DocumentRepository
 from app.repositories.user_repository import UserRepository
@@ -21,6 +22,7 @@ from app.services.auth_service import AuthService
 from app.services.availability_service import AvailabilityService
 from app.services.catalog_service import CatalogService
 from app.services.knowledge_base_service import KnowledgeBaseService
+from app.services.search_service import SearchService
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
@@ -62,6 +64,13 @@ def get_knowledge_base_service(session: SessionDep, queue: IngestQueueDep) -> Kn
 
 
 KnowledgeBaseServiceDep = Annotated[KnowledgeBaseService, Depends(get_knowledge_base_service)]
+
+
+def get_search_service(session: SessionDep) -> SearchService:
+    return SearchService(ChunkRepository(session))
+
+
+SearchServiceDep = Annotated[SearchService, Depends(get_search_service)]
 
 # tokenUrl documents where a client gets a token (shows up as the "Authorize"
 # flow in Swagger UI) — it's advertisement, not a redirect the dependency follows.

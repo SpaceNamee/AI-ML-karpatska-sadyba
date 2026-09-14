@@ -25,3 +25,8 @@ htmlcov/
 
 # Uploaded knowledge-base files (local dev; a Docker volume in compose)
 data/
+
+# HF model cache. Should only ever live in the `hf_cache` Docker volume or the
+# host's own ~/.cache/huggingface — this entry guards against a bind-mount
+# misconfiguration leaking a container's HF_HOME into the project root again.
+.cache/
