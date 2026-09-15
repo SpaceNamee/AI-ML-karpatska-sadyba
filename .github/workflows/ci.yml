@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        # pgvector/pgvector:pg16, not plain postgres:16 — the extension
+        # files need to be physically present in the image; `CREATE
+        # EXTENSION` (which our first migration does) only *activates* it.
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: sadyba
+          POSTGRES_PASSWORD: sadyba
+          POSTGRES_DB: sadyba
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      ENVIRONMENT: ci
+      DATABASE_URL: postgresql+asyncpg://sadyba:sadyba@localhost:5432/sadyba_test
+      REDIS_URL: redis://localhost:6379/0
+      # A dummy value, not a secret: this only has to satisfy Settings'
+      # "no default, fail loudly if unset" rule for local dev safety. Nothing
+      # in CI issues a real token anyone could use anywhere.
+      JWT_SECRET_KEY: ci-only-dummy-secret-never-used-for-anything-real
+      # LLM_API_KEY deliberately unset — POST /ask isn't exercised in CI
+      # (tests/unit/test_rag_service.py uses a fake LlmClient); everything
+      # else is designed to work with no LLM configured at all.
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+
+      - name: Cache the embedding model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          # Keyed on the model name (from Settings' default), not on
+          # anything that changes every run — a cache hit skips a ~470MB
+          # download on every single CI run, not just repeat ones.
+          key: hf-model-paraphrase-multilingual-MiniLM-L12-v2
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: ruff check
+        run: uv run ruff check .
+
+      - name: ruff format --check
+        run: uv run ruff format --check .
+
+      - name: mypy
+        run: uv run mypy
+
+      - name: pytest (unit + integration)
+        run: uv run pytest

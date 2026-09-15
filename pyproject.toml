@@ -72,7 +72,20 @@ strict = true
 plugins = ["pydantic.mypy"]
 files = ["app", "tests"]
 
+[[tool.mypy.overrides]]
+# asyncpg ships no py.typed marker and no stub package exists (checked:
+# types-asyncpg isn't on PyPI). Only used directly in tests/integration/
+# conftest.py, for the one-off "does the test DB exist yet" check.
+module = "asyncpg"
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+# One event loop for the whole run, not one per test: asyncpg connections are
+# bound to the loop that created them, and the shared engine's pool would
+# otherwise hand a later test a connection tied to a loop that no longer
+# exists ("another operation is in progress" / similar cryptic asyncpg errors).
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
