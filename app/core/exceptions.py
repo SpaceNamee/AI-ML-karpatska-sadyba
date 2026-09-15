@@ -68,3 +68,17 @@ class LlmNotConfiguredError(DomainError):
 
     def __init__(self) -> None:
         super().__init__("LLM_API_KEY is not configured — ask-a-question is unavailable")
+
+
+class LlmProviderError(DomainError):
+    """The provider itself failed — rate limit, its own 5xx, a dropped
+    connection. 502 (Bad Gateway) is the accurate code: our server is fine,
+    an upstream one isn't. Distinguished from LlmNotConfiguredError (503,
+    *our* config problem) so a client — or a human reading logs — can tell a
+    "come back later, they're overloaded" from a "we broke our own setup".
+    """
+
+    status_code = 502
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(f"The AI provider is temporarily unavailable: {detail}")

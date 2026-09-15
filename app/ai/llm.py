@@ -16,7 +16,7 @@ from typing import Protocol
 import openai
 
 from app.core.config import settings
-from app.core.exceptions import LlmNotConfiguredError
+from app.core.exceptions import LlmNotConfiguredError, LlmProviderError
 
 
 @dataclass(frozen=True)
@@ -37,13 +37,21 @@ class OpenAiCompatClient:
         self._model = model
 
     async def complete(self, *, system: str, user: str) -> LlmResponse:
-        response = await self._client.chat.completions.create(
-            model=self._model,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-        )
+        try:
+            response = await self._client.chat.completions.create(
+                model=self._model,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+            )
+        except openai.APIError as exc:
+            # Covers rate limits, the provider's own 5xx, and dropped
+            # connections alike — found live: Gemini returned a transient 503
+            # ("high demand") during Day 9 verification, and without this it
+            # surfaced to the guest as an opaque, bodyless 500.
+            raise LlmProviderError(str(exc)) from exc
+
         choice = response.choices[0]
         usage = response.usage
         return LlmResponse(
