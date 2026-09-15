@@ -61,3 +61,10 @@ class UploadTooLargeError(DomainError):
     def __init__(self, max_bytes: int) -> None:
         self.max_bytes = max_bytes
         super().__init__(f"Upload exceeds the {max_bytes}-byte limit")
+
+
+class LlmNotConfiguredError(DomainError):
+    status_code = 503
+
+    def __init__(self) -> None:
+        super().__init__("LLM_API_KEY is not configured — ask-a-question is unavailable")
