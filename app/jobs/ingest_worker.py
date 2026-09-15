@@ -1,9 +1,6 @@
-"""ARQ worker: async knowledge-base ingestion (parse -> chunk -> KbChunk rows).
+"""ARQ worker: async knowledge-base ingestion (parse -> chunk -> embed -> ready).
 
 Run with:  uv run arq app.jobs.ingest_worker.WorkerSettings
-
-No embeddings yet (a later sprint day) — a chunk's `embedding` column stays
-NULL, and IngestionStatus.READY here means "chunked", not "search-ready".
 """
 
 from datetime import UTC, datetime
@@ -13,8 +10,10 @@ from typing import Any
 import anyio
 import structlog
 from arq.connections import RedisSettings
+from sentence_transformers import SentenceTransformer
 from sqlalchemy.orm import selectinload
 
+from app.ai.embeddings import embed_texts, load_model
 from app.ai.rag.chunking import chunk_text
 from app.ai.rag.parsing import parse_document
 from app.core.config import settings
@@ -46,8 +45,21 @@ async def ingest_document(ctx: dict[str, Any], document_id: int) -> None:
                 parse_document, Path(document.stored_path), document.content_type
             )
             chunks = chunk_text(text)
-            for position, content in enumerate(chunks):
-                session.add(KbChunk(document_id=document.id, position=position, content=content))
+
+            # model.encode() is CPU-bound and synchronous; off-loading it keeps
+            # this worker's event loop free to service other concurrent jobs.
+            model: SentenceTransformer = ctx["embedding_model"]
+            vectors = await anyio.to_thread.run_sync(embed_texts, model, chunks)
+
+            for position, (content, vector) in enumerate(zip(chunks, vectors, strict=True)):
+                session.add(
+                    KbChunk(
+                        document_id=document.id,
+                        position=position,
+                        content=content,
+                        embedding=vector,
+                    )
+                )
 
             job.status = IngestionStatus.READY
             job.chunk_count = len(chunks)
@@ -70,6 +82,10 @@ async def _on_startup(ctx: dict[str, Any]) -> None:
     # never runs for it.
     configure_logging(debug=settings.debug)
     logger.info("worker_startup")
+    # Loaded once here, reused by every ingest_document call via ctx — see the
+    # module docstring in app/ai/embeddings.py for why that matters.
+    ctx["embedding_model"] = await anyio.to_thread.run_sync(load_model)
+    logger.info("embedding_model_loaded", model=settings.embedding_model_name)
 
 
 async def _on_shutdown(ctx: dict[str, Any]) -> None:

@@ -6,6 +6,7 @@ is missing or has the wrong type, the process fails here, at startup, with a cle
 error — never later, deep in a request.
 """
 
+from decimal import Decimal
 from pathlib import Path
 from typing import Literal
 
@@ -30,9 +31,11 @@ class Settings(BaseSettings):
     # is easy to get silently wrong, so there's no default to fall back on.
     redis_url: str
 
-    # Embedding vector width. Must match the model that produces the vectors
-    # (paraphrase-multilingual-MiniLM-L12-v2 -> 384). Changing the model means a
-    # new migration for the `vector(N)` column, so this lives in config, not code.
+    # The model and its vector width travel together — changing one without the
+    # other is a silent bug (a dimension mismatch) or a wasted re-embed (same
+    # dimension, different vectors). embeddings.load_model() checks the two
+    # agree at worker startup rather than at the first surprising INSERT error.
+    embedding_model_name: str = "paraphrase-multilingual-MiniLM-L12-v2"
     embedding_dimensions: int = 384
 
     # No default: a secret with a built-in fallback is a secret that leaks into
@@ -52,6 +55,23 @@ class Settings(BaseSettings):
     # password by copying the template.
     admin_email: str = "admin@karpatska-sadyba.local"
     admin_seed_password: str | None = None
+
+    # Deliberately optional and unset by default: the catalog, availability,
+    # upload, and search endpoints all work with no LLM configured. Only
+    # POST /ask needs this, and it fails with a clear 503 (LlmNotConfiguredError)
+    # rather than the whole app refusing to start over a feature nobody may be
+    # using yet. Any OpenAI-compatible endpoint works — change all three
+    # together: Gemini's free tier (the default base_url/model below), DeepSeek,
+    # or OpenAI itself. Anthropic's native API is not OpenAI-compatible and
+    # would need its own LlmClient implementation behind the same Protocol.
+    llm_api_key: str | None = None
+    llm_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
+    llm_model: str = "gemini-3.8-flash"
+    # $/1M tokens. Left at 0 rather than a hardcoded guess — provider prices
+    # change often; copy the real numbers from your provider's pricing page
+    # before trusting the cost figures in llm_calls.
+    llm_price_per_million_input_tokens: Decimal = Decimal("0")
+    llm_price_per_million_output_tokens: Decimal = Decimal("0")
 
 
 settings = Settings()  # values come from the environment / .env
